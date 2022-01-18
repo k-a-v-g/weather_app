@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'dart:convert';
+import 'dart:async';
 
 void main() {
-  runApp(const MaterialApp());
+  runApp(const MaterialApp(
+    home: HomePage()
+  ));
 }
 
 class HomePage extends StatefulWidget {
@@ -16,51 +18,48 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  Future<Position> getPosition() async {
-    Position position = await Geolocator
-        .getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-    return position;
-  }
-  String _locality = '';
 
-  Future<Placemark> getPlacemark(double latitude, double longitude) async {
-    List<Placemark> placemark = await placemarkFromCoordinates(latitude, longitude);
-    return placemark[0];
-  }
-  String _weather = '';
+  late String latitude='';
+  late String longitude='';
 
-  Future<String> getData(double latitude, double longitude) async {
-    String api = 'http://api.openweathermap.org/data/2.5/forecast';
-    String appId = '<apiId>';
+  var temp;
+  var description;
 
-    var url = Uri.parse('$api?lat=$latitude&lon=$longitude&APPID=$appId');
+  Future getData() async {
+    String appId = 'aa67b32def20354807341ee27ff707e8';
+
+    var url = Uri.parse('api.openweathermap.org/data/2.5/weather?lat=$latitude&lon=$longitude&appid=$appId');
 
     http.Response response = await http.get(url);
+    var results = json.decode(response.body);
 
-    Map parsed = json.decode(response.body);
-
-    return parsed['list'][0]['weather'][0]['description'];
+    setState(() {
+      this.temp = results["main"]["temp"];
+      this.description = results['weather'][0]['description'];
+    });
   }
 
   @override
   void initState() {
     super.initState();
-    getPosition().then((position) {
-      getPlacemark(position.latitude, position.longitude).then((data) {
-        getData(position.latitude, position.longitude).then((weather) {
-          setState(() {
-            _locality = data.locality!;
-            _weather = weather;
-          });
-        });
-      });
+    getCurrentLocation();
+  }
+
+  getCurrentLocation() async {
+    final geoposition = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+
+
+    setState(() {
+      latitude = '${geoposition.latitude}';
+      longitude = '${geoposition.longitude}';
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text('Weather'),
         centerTitle: true,
@@ -68,18 +67,30 @@ class _HomePageState extends State<HomePage> {
         ),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          Text(
-            '$_locality',
-            style: Theme.of(context).textTheme.headline4,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Temperature: '),
+              Text(
+                temp != null ? temp.toString() + "\u00B0" : "Loading...",
+              ),
+            ],
           ),
-          Text(
-            '$_weather',
-            style: Theme.of(context).textTheme.headline4,
-          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Details: '),
+              Text(
+                description != null ? description.toString() : "Loading...",
+              ),
+            ],
+          )
         ],
       )
     );
   }
 }
+
 
